@@ -1,20 +1,14 @@
 ## Gemini Added Memories
 - The user and I have established a plan to collaboratively develop an application. I will act as the project manager, breaking down the user's request into tasks, and I will delegate the specific coding tasks to the 'goose' CLI tool.
 - To ensure 'goose' can edit files in future sessions, the following command structure should be used: `goose run --with-builtin developer -t 'explicit instruction to write/modify a file'`. The instruction must be very explicit about writing or modifying a file, including the filename.
-- **Current Project Status**: We have successfully implemented the foundational commands:
-    - `pm configure`: Configures GitHub credentials.
-    - `pm import`: Imports repositories from GitHub.
-    - `pm list`: Lists tracked projects, now including Wiki status.
-    - `pm show`: Displays project details.
-    - `pm add-task`: Adds tasks to projects.
-    - `pm update-task`: Updates task status.
-    - `pm sync`: Fetches new commits from GitHub and stores raw commit data (SHA, message, author, date, diffs) in `data.json`. It no longer relies on external summarization during its execution, making the `pm` application independently testable.
-    - `pm new <project-name>`: Creates a new GitHub repository and adds the project to `pm`'s tracking.
+- **Current Project Status**: We have successfully implemented the foundational commands (`configure`, `import`, `list`, `show`, `add-task`, `update-task`).
+- **`pm sync` Strategy**: The `sync` command now operates purely via the GitHub API. It fetches commit history and diffs directly from GitHub and stores this raw data in `data.json`. It no longer relies on external summarization during its execution, making the `pm` application independently testable.
 - **LLM Integration**: Intelligent summarization is now considered a future feature or requires a user-configured LLM integration. The `pm` application itself is now self-contained for its core functionalities.
-- **Distribution & Documentation**: 
-    - The `v0.1.0-alpha` release has been created on GitHub, allowing `pm` to be installed via `pip` without Poetry.
-    - The GitHub Wiki has been populated with detailed documentation, and its Markdown rendering issues have been addressed.
-    - An `install.sh` script has been created to allow direct installation of `pm` via `curl`.
-    - An `index.html` page has been created for GitHub Pages, providing a user-friendly installation link.
+- **New Feature Implemented**: The `pm list` command now displays the Wiki status for each tracked project, indicating whether a GitHub Wiki exists for that repository.
+- **New Feature Implemented**: The `pm new <project-name>` command now creates a new GitHub repository and adds the project to `pm`'s tracking.
+- **New Feature Implemented**: The `v0.1.0-alpha` release has been created on GitHub, allowing `pm` to be installed via `pip` without Poetry.
+- **New Feature Implemented**: The GitHub Wiki has been populated with detailed documentation, and its Markdown rendering issues have been addressed. It now includes clearer formatting and content.
+- **New Feature Implemented**: An `install.sh` script has been created to allow direct installation of `pm` via `curl`, and the `README.md` has been updated to reflect this.
+- **New Feature Implemented**: An `index.html` page has been created for GitHub Pages, providing a user-friendly installation link.
 - **Project Testability**: The `pm` application is now independently testable by other agents or developers using the provided documentation and installation methods.
 - **Next Steps**: Future work includes enhancing the `show` command to display `sync_logs` (raw commit data), implementing the `pm add` command to manually add projects by URL, and exploring local LLM integration for summarization.
