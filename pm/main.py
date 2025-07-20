@@ -42,6 +42,29 @@ def save_data(data):
 def find_project_by_id(project_id: int, data: dict):
     return next((p for p in data.get("projects", []) if p["id"] == project_id), None)
 
+def check_wiki_exists(github_url: str, token: str) -> bool:
+    """
+    Checks if a GitHub repository has an active Wiki.
+    """
+    # GitHub Wiki URLs are typically repo_url + ".wiki.git"
+    # To check for existence, we can try to fetch the raw Home.md
+    # This is a bit hacky, as GitHub doesn't provide a direct API for Wiki existence.
+    # A 200 status code for Home.md usually means the Wiki is active.
+    
+    # Extract owner and repo name from github_url
+    parts = github_url.split('/')
+    owner = parts[-2]
+    repo_name = parts[-1].replace(".git", "") # Remove .git if present
+
+    wiki_raw_url = f"https://raw.githubusercontent.com/wiki/{owner}/{repo_name}/Home.md"
+    headers = {"Authorization": f"token {token}"}
+
+    try:
+        response = requests.head(wiki_raw_url, headers=headers, allow_redirects=True)
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
+
 # --- Typer App ---
 
 @app.callback(invoke_without_command=True)
@@ -122,6 +145,9 @@ def list_projects():
     """
     List all tracked projects.
     """
+    config = load_config() # Load config to get token for wiki check
+    token = config["github_pat"]
+
     data = load_data()
     projects = data.get("projects", [])
 
@@ -134,15 +160,25 @@ def list_projects():
     table.add_column("Name", style="green")
     table.add_column("Description")
     table.add_column("Last Synced", style="magenta")
+    table.add_column("Wiki", style="blue") # New column for Wiki status
 
     for project in projects:
         desc = project.get('description') or 'No description'
         last_synced = project.get('last_synced') or 'Never'
+        
+        wiki_status = "N/A"
+        if project.get('github_url'):
+            if check_wiki_exists(project['github_url'], token):
+                wiki_status = "✅ Yes"
+            else:
+                wiki_status = "❌ No"
+
         table.add_row(
             str(project['id']),
             project['name'],
             desc,
-            last_synced
+            last_synced,
+            wiki_status
         )
 
     console.print(table)
