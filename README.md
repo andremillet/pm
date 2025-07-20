@@ -9,7 +9,7 @@ This project is being developed using its own logic, serving as the first projec
 - **GitHub Integration**: Configure `pm` with your GitHub credentials to manage repositories.
 - **Project Tracking**: Add existing repositories or create new ones to track.
 - **Automated Summaries**: (Future) Automatically generate progress summaries from `git` logs.
-- **Local LLM Support**: (Future) Option to use a local language model for privacy and offline use.
+- **Local LLM Support**: (Future) Option to use a local language model for privacy and offline capabilities.
 
 ## Installation
 
@@ -45,4 +45,4 @@ This project is being developed using its own logic, serving as the first projec
 ---
 *This README is actively being developed alongside the project.*
 
-**Added a new line to trigger a new commit for testing sync command.**
+**Added another line to trigger a new commit for testing sync command.**
