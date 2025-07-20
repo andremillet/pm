@@ -7,4 +7,6 @@
 - **New Feature Implemented**: The `pm list` command now displays the Wiki status for each tracked project, indicating whether a GitHub Wiki exists for that repository.
 - **New Feature Implemented**: The `pm new <project-name>` command now creates a new GitHub repository and adds the project to `pm`'s tracking.
 - **New Feature Implemented**: The `v0.1.0-alpha` release has been created on GitHub, allowing `pm` to be installed via `pip` without Poetry.
+- **New Feature Implemented**: The GitHub Wiki has been populated with detailed documentation and its Markdown rendering issues have been addressed.
+- **New Feature Implemented**: An `install.sh` script has been created to allow direct installation of `pm` via `curl`.
 - **Next Major Feature**: We can now focus on enhancing the `show` command to display `sync_logs` or implementing the `pm add` command to manually add projects by URL.

@@ -15,7 +15,23 @@ This project is being developed using its own logic, serving as the first projec
 
 ## Installation
 
-### For Developers (using Poetry)
+### 1. Using the `install.sh` script (Recommended for Users)
+
+This is the easiest way to get `pm` installed on your Linux or macOS system. It downloads the latest alpha release from GitHub and installs it using `pip`.
+
+```bash
+curl -sSL https://raw.githubusercontent.com/andremillet/pm/master/install.sh | bash
+```
+
+After installation, you will need to configure your GitHub credentials:
+
+```bash
+pm configure
+```
+
+### 2. For Developers (using Poetry)
+
+If you plan to contribute to `pm` or want to manage its dependencies with Poetry:
 
 1.  **Clone the repository:**
     ```bash
@@ -40,15 +56,14 @@ This project is being developed using its own logic, serving as the first projec
     ```
     Follow the prompts to enter your GitHub username and PAT.
 
-### For Users (via pip from GitHub Release)
+### 3. For Users (via pip from GitHub Release)
 
 Once a release is available, you can install `pm` directly using `pip`.
 
 1.  **Install `pm`:**
     ```bash
-    pip install https://github.com/andremillet/pm/releases/download/<TAG_NAME>/pm-0.1.0-py3-none-any.whl
+    pip install https://github.com/andremillet/pm/releases/download/v0.1.0-alpha/pm-0.1.0-py3-none-any.whl
     ```
-    Replace `<TAG_NAME>` with the actual release tag (e.g., `v0.1.0-alpha`). You can find the latest releases [here](https://github.com/andremillet/pm/releases).
 
 2.  **Configure `pm`:**
     After installation, run the configuration script:
@@ -73,12 +88,12 @@ For example:
 poetry run pm list
 ```
 
-### For Users (after pip installation)
+### For Users (after pip installation or install.sh)
 
-After installing via `pip`, you can run `pm` commands directly:
+After installing via `pip` or `install.sh`, you can run `pm` commands directly:
 
 ```bash
-pm <command> [arguments]
+pml <command> [arguments]
 ```
 
 For example:
