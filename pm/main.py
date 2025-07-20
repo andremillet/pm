@@ -185,6 +185,37 @@ def show(project_id: int = typer.Argument(..., help="The ID of the project to sh
     else:
         console.print("🤷 No tasks for this project yet.")
 
+@app.command(name="add-task")
+def add_task(
+    project_id: int = typer.Argument(..., help="The ID of the project to add the task to."),
+    description: str = typer.Argument(..., help="The description of the task.")
+):
+    """
+    Add a new task to a project.
+    """
+    data = load_data()
+    projects = data.get("projects", [])
+
+    project = next((p for p in projects if p["id"] == project_id), None)
+
+    if project is None:
+        console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
+        raise typer.Exit(1)
+
+    tasks = project.get("tasks", [])
+    new_task_id = max([t["id"] for t in tasks]) + 1 if tasks else 1
+
+    new_task = {
+        "id": new_task_id,
+        "description": description,
+        "status": "todo"
+    }
+    tasks.append(new_task)
+    project["tasks"] = tasks # Ensure the tasks list is updated in the project dict
+
+    save_data(data)
+    console.print(f"✅ Task '[bold green]{description}[/bold green]' added to project '[bold blue]{project['name']}[/bold blue]' (ID: {project_id}).")
+
 
 if __name__ == "__main__":
     app()
