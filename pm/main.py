@@ -6,7 +6,7 @@ from rich.text import Text
 import json
 from pathlib import Path
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 app = typer.Typer(help="🚀 pm: Your intelligent project manager!")
 console = Console()
@@ -42,7 +42,7 @@ def save_data(data):
 def find_project_by_id(project_id: int, data: dict):
     return next((p for p in data.get("projects", []) if p["id"] == project_id), None)
 
-# --- Typer App --- 
+# --- Typer App ---
 
 @app.callback(invoke_without_command=True)
 def cli_main(ctx: typer.Context):
@@ -256,7 +256,8 @@ def sync(
     project_id: int = typer.Argument(..., help="The ID of the project to sync.")
 ):
     """
-    Syncs a project with its GitHub repository, fetching new commits and summarizing progress.
+    Syncs a project with its GitHub repository, fetching new commits.
+    The summarization is handled externally by the agent.
     """
     config = load_config()
     data = load_data()
@@ -279,10 +280,12 @@ def sync(
     last_synced_dt = None
     if project["last_synced"]:
         last_synced_dt = datetime.fromisoformat(project["last_synced"])
+        if last_synced_dt.tzinfo is None: # If it's naive, assume UTC and make it aware
+            last_synced_dt = last_synced_dt.replace(tzinfo=timezone.utc)
+        else: # If it's already aware, convert to UTC
+            last_synced_dt = last_synced_dt.astimezone(timezone.utc)
 
     # Fetch commits from GitHub API
-    # We'll fetch all commits and filter by date locally for simplicity, or use 'since' parameter
-    # For now, let's fetch all and process.
     commits_url = f"https://api.github.com/repos/{owner}/{repo_name}/commits"
     
     try:
@@ -293,8 +296,9 @@ def sync(
         new_commits_data = []
         for commit in commits:
             commit_date_str = commit["commit"]["author"]["date"]
-            commit_dt = datetime.fromisoformat(commit_date_str.replace("Z", "+00:00")) # Handle 'Z' for UTC
-
+            # Replace 'Z' with '+00:00' for proper ISO 8601 parsing
+            commit_dt = datetime.fromisoformat(commit_date_str.replace("Z", "+00:00"))
+            
             if last_synced_dt and commit_dt <= last_synced_dt:
                 continue # Skip old commits
             
@@ -314,50 +318,51 @@ def sync(
         
         if not new_commits_data:
             console.print("✅ No new commits to sync.")
-            project["last_synced"] = datetime.now().isoformat()
-            save_data(data)
+            # No update to last_synced or sync_logs here, handled by update-sync-summary
             return
 
         # Sort new commits by date ascending
         new_commits_data.sort(key=lambda x: datetime.fromisoformat(x["date"].replace("Z", "+00:00")))
 
-        # Prepare data for summarization
-        summarization_input = []
-        for c in new_commits_data:
-            diff_content = "\n".join([f"File: {f['filename']}\nStatus: {f['status']}\nChanges: {f.get('patch', 'No patch')}" for f in c["diff"]])
-            summarization_input.append(
-                f"Commit SHA: {c['sha']}\n"
-                f"Author: {c['author']}\n"
-                f"Date: {c['date']}\n"
-                f"Message: {c['message']}\n"
-                f"Diff:\n{diff_content}\n---"
-            )
-        
-        full_prompt = "Summarize the following Git commits and their changes. Focus on key features, bug fixes, and significant refactors. Provide a concise, high-level overview of the progress. If there are multiple commits, group related changes. Output should be a single paragraph or a short bulleted list.\n\n" + "\n".join(summarization_input)
+        # Print commits for external summarization
+        console.print("---COMMITS_FOR_SUMMARIZATION_START---")
+        console.print(json.dumps(new_commits_data, indent=2))
+        console.print("---COMMITS_FOR_SUMMARIZATION_END---")
 
-        # Placeholder for web_fetch call
-        console.print("🧠 Sending commits for summarization...")
-        # summary_result = default_api.web_fetch(prompt=full_prompt)
-        # summary = summary_result.get("summary", "Could not generate summary.")
-        summary = "[Placeholder Summary: Commits would be summarized here by a language model.]"
-
-        # Store summary and update last_synced
-        if "sync_logs" not in project:
-            project["sync_logs"] = []
-        project["sync_logs"].append({
-            "timestamp": datetime.now().isoformat(),
-            "summary": summary,
-            "new_commits_count": len(new_commits_data)
-        })
-        project["last_synced"] = datetime.now().isoformat()
-        save_data(data)
-
-        console.print(f"✅ Project [bold blue]{project['name']}[/bold blue] synced successfully!")
-        console.print(f"Summary of new activity:\n{summary}")
+        console.print(f"✅ Commits fetched for project [bold blue]{project['name']}[/bold blue]. Waiting for summarization...")
 
     except requests.exceptions.RequestException as e:
         console.print(f"❌ [bold red]Error syncing project:[/bold red] {e}")
         raise typer.Exit(1)
+
+@app.command(name="update-sync-summary")
+def update_sync_summary(
+    project_id: int = typer.Argument(..., help="The ID of the project to update."),
+    summary: str = typer.Option(..., "--summary", "-s", help="The generated summary of new activity.")
+):
+    """
+    Updates the sync log and last synced date for a project with a generated summary.
+    This command is intended to be called by the agent after summarization.
+    """
+    data = load_data()
+    project = find_project_by_id(project_id, data)
+
+    if project is None:
+        console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
+        raise typer.Exit(1)
+
+    if "sync_logs" not in project:
+        project["sync_logs"] = []
+    project["sync_logs"].append({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "new_commits_count": "(unknown)" # We don't have this info here, could be passed if needed
+    })
+    project["last_synced"] = datetime.now(timezone.utc).isoformat()
+    save_data(data)
+
+    console.print(f"✅ Project [bold blue]{project['name']}[/bold blue] sync summary updated successfully!")
+    console.print(f"Summary of new activity:\n{summary}")
 
 
 if __name__ == "__main__":
