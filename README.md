@@ -15,6 +15,8 @@ This project is being developed using its own logic, serving as the first projec
 
 ## Installation
 
+### For Developers (using Poetry)
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/andremillet/pm.git
@@ -31,19 +33,69 @@ This project is being developed using its own logic, serving as the first projec
     poetry install
     ```
 
+4.  **Configure `pm` with your GitHub credentials:**
+    This step is crucial for `pm` to interact with your GitHub account.
+    ```bash
+    ./run_configure.sh
+    ```
+    Follow the prompts to enter your GitHub username and PAT.
+
+### For Users (via pip from GitHub Release)
+
+Once a release is available, you can install `pm` directly using `pip`.
+
+1.  **Install `pm`:**
+    ```bash
+    pip install https://github.com/andremillet/pm/releases/download/<TAG_NAME>/pm-0.1.0-py3-none-any.whl
+    ```
+    Replace `<TAG_NAME>` with the actual release tag (e.g., `v0.1.0-alpha`). You can find the latest releases [here](https://github.com/andremillet/pm/releases).
+
+2.  **Configure `pm`:**
+    After installation, run the configuration script:
+    ```bash
+    pm configure
+    ```
+    Follow the prompts to enter your GitHub username and PAT.
+
 ## Usage
 
-All `pm` commands should be run using `poetry run pm <command> [arguments]`. This ensures the application runs within its isolated Python environment with all necessary dependencies.
+### For Developers (using Poetry)
+
+During development, always run `pm` commands using `poetry run` to ensure it uses the correct isolated environment:
+
+```bash
+poetry run pm <command> [arguments]
+```
+
+For example:
+
+```bash
+poetry run pm list
+```
+
+### For Users (after pip installation)
+
+After installing via `pip`, you can run `pm` commands directly:
+
+```bash
+pm <command> [arguments]
+```
+
+For example:
+
+```bash
+pm list
+```
 
 ### `pm configure`
 
-Configures your GitHub username and Personal Access Token (PAT). This is required for `pm` to interact with your GitHub repositories.
+Configures your GitHub username and Personal Access Token (PAT). This is a prerequisite for most `pm` functionalities.
 
 ```bash
 ./run_configure.sh
 ```
 
-Follow the prompts to enter your GitHub username and PAT. You can generate a PAT [here](https://github.com/settings/tokens/new) (ensure it has `repo` permissions).
+Follow the prompts to enter your GitHub username and PAT. You can generate a PAT [here](https://github.com/settings/tokens/new) (ensure it has `repo` scope).
 
 ### `pm import`
 
@@ -55,7 +107,7 @@ Interactively imports repositories from your GitHub account, allowing you to sel
 
 ### `pm list`
 
-Lists all projects currently being tracked by `pm`.
+Lists all projects currently being tracked by `pm`, including their ID, name, description, last sync date, and Wiki status.
 
 ```bash
 poetry run pm list
@@ -63,7 +115,7 @@ poetry run pm list
 
 ### `pm show <project_id>`
 
-Shows detailed information about a specific project, including its tasks and (future) sync logs.
+Shows detailed information about a specific project, including its tasks and raw sync logs.
 
 ```bash
 poetry run pm show 1 # Replace 1 with the actual project ID
@@ -71,7 +123,7 @@ poetry run pm show 1 # Replace 1 with the actual project ID
 
 ### `pm add-task <project_id> "<task_description>"`
 
-Adds a new task to a specified project.
+Adds a new task to a specified project. The task will have a default status of `todo`.
 
 ```bash
 poetry run pm add-task 1 "Implement the sync command"
@@ -87,11 +139,24 @@ poetry run pm update-task 1 --status doing
 
 ### `pm sync <project_id>`
 
-Syncs a project with its GitHub repository. This command fetches new commits and stores their details (SHA, message, author, date, and diffs) in `pm`'s internal data. Intelligent summarization of these commits is a planned future feature.
+Syncs a project with its GitHub repository. This command fetches new commits and stores their details (SHA, message, author, date, and diffs) in `pm`'s internal data (`~/.pm/data.json`). Intelligent summarization of these commits is a planned future feature that will leverage LLMs.
 
 ```bash
 poetry run pm sync 1 # Replace 1 with the actual project ID
 ```
+
+### `pm new <project_name>`
+
+Creates a new project, including a GitHub repository (public by default, with Wiki enabled), and adds it to `pm`'s tracking.
+
+```bash
+poetry run pm new my-new-project -d "A fantastic new idea" --public
+```
+
+### Options
+
+*   `-d, --description <description>`: A brief description for the new project and GitHub repository.
+*   `-p, --public`: Make the new GitHub repository public (default: `True`). Use `--no-public` to create a private repository.
 
 ---
 *This README is actively being developed alongside the project.*
