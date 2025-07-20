@@ -1,5 +1,6 @@
 import typer
 from rich.console import Console
+from rich.table import Table
 import json
 from pathlib import Path
 import requests
@@ -109,6 +110,36 @@ def import_projects():
     except requests.exceptions.RequestException as e:
         console.print(f"❌ [bold red]Error fetching repositories:[/bold red] {e}")
         raise typer.Exit(1)
+
+@app.command(name="list")
+def list_projects():
+    """
+    List all tracked projects.
+    """
+    data = load_data()
+    projects = data.get("projects", [])
+
+    if not projects:
+        console.print("🤷 No projects are being tracked yet. Use `pm import` to add some!")
+        return
+
+    table = Table(title="Tracked Projects")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Name", style="green")
+    table.add_column("Description")
+    table.add_column("Last Synced", style="magenta")
+
+    for project in projects:
+        desc = project.get('description') or 'No description'
+        last_synced = project.get('last_synced') or 'Never'
+        table.add_row(
+            str(project['id']),
+            project['name'],
+            desc,
+            last_synced
+        )
+
+    console.print(table)
 
 if __name__ == "__main__":
     app()
