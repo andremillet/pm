@@ -256,15 +256,15 @@ def sync(
     project_id: int = typer.Argument(..., help="The ID of the project to sync.")
 ):
     """
-    Syncs a project with its GitHub repository, fetching new commits.
-    The summarization is handled externally by the agent.
+    Syncs a project with its GitHub repository, fetching new commits and storing them.
+    Summarization is a future feature.
     """
     config = load_config()
     data = load_data()
     project = find_project_by_id(project_id, data)
 
     if project is None:
-        console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
+        console.print(f"❌ [bold red]Project with ID {project_id} not.[/bold red]")
         raise typer.Exit(1)
 
     console.print(f"🔄 Syncing project [bold blue]{project['name']}[/bold blue]...")
@@ -318,51 +318,37 @@ def sync(
         
         if not new_commits_data:
             console.print("✅ No new commits to sync.")
-            # No update to last_synced or sync_logs here, handled by update-sync-summary
+            project["last_synced"] = datetime.now(timezone.utc).isoformat()
+            save_data(data)
             return
 
         # Sort new commits by date ascending
         new_commits_data.sort(key=lambda x: datetime.fromisoformat(x["date"].replace("Z", "+00:00")))
 
-        # Print commits for external summarization
-        console.print("---COMMITS_FOR_SUMMARIZATION_START---")
-        console.print(json.dumps(new_commits_data, indent=2))
-        console.print("---COMMITS_FOR_SUMMARIZATION_END---")
+        # Store raw commit data in sync_logs
+        if "sync_logs" not in project:
+            project["sync_logs"] = []
+        
+        # Append each new commit as a separate log entry
+        for commit_data in new_commits_data:
+            project["sync_logs"].append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "commit_sha": commit_data["sha"],
+                "message": commit_data["message"],
+                "author": commit_data["author"],
+                "date": commit_data["date"],
+                "diff": commit_data["diff"],
+                "summary": "(Summary to be generated later)" # Placeholder for future summarization
+            })
 
-        console.print(f"✅ Commits fetched for project [bold blue]{project['name']}[/bold blue]. Waiting for summarization...")
+        project["last_synced"] = datetime.now(timezone.utc).isoformat()
+        save_data(data)
+
+        console.print(f"✅ Project [bold blue]{project['name']}[/bold blue] synced successfully! {len(new_commits_data)} new commits stored.")
 
     except requests.exceptions.RequestException as e:
         console.print(f"❌ [bold red]Error syncing project:[/bold red] {e}")
         raise typer.Exit(1)
-
-@app.command(name="update-sync-summary")
-def update_sync_summary(
-    project_id: int = typer.Argument(..., help="The ID of the project to update."),
-    summary: str = typer.Option(..., "--summary", "-s", help="The generated summary of new activity.")
-):
-    """
-    Updates the sync log and last synced date for a project with a generated summary.
-    This command is intended to be called by the agent after summarization.
-    """
-    data = load_data()
-    project = find_project_by_id(project_id, data)
-
-    if project is None:
-        console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
-        raise typer.Exit(1)
-
-    if "sync_logs" not in project:
-        project["sync_logs"] = []
-    project["sync_logs"].append({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "summary": summary,
-        "new_commits_count": "(unknown)" # We don't have this info here, could be passed if needed
-    })
-    project["last_synced"] = datetime.now(timezone.utc).isoformat()
-    save_data(data)
-
-    console.print(f"✅ Project [bold blue]{project['name']}[/bold blue] sync summary updated successfully!")
-    console.print(f"Summary of new activity:\n{summary}")
 
 
 if __name__ == "__main__":
