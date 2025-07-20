@@ -216,6 +216,41 @@ def add_task(
     save_data(data)
     console.print(f"✅ Task '[bold green]{description}[/bold green]' added to project '[bold blue]{project['name']}[/bold blue]' (ID: {project_id}).")
 
+@app.command(name="update-task")
+def update_task(
+    task_id: int = typer.Argument(..., help="The ID of the task to update."),
+    status: str = typer.Option(..., "--status", "-s", help="The new status of the task (todo, doing, done).")
+):
+    """
+    Update the status of a task.
+    """
+    data = load_data()
+    projects = data.get("projects", [])
+
+    found_task = False
+    for project in projects:
+        tasks = project.get("tasks", [])
+        for task in tasks:
+            if task["id"] == task_id:
+                # Validate status
+                valid_statuses = ["todo", "doing", "done"]
+                if status not in valid_statuses:
+                    console.print(f"❌ [bold red]Invalid status: {status}.[/bold red] Valid statuses are: {', '.join(valid_statuses)}.")
+                    raise typer.Exit(1)
+
+                task["status"] = status
+                found_task = True
+                break
+        if found_task:
+            break
+
+    if not found_task:
+        console.print(f"❌ [bold red]Task with ID {task_id} not found.[/bold red]")
+        raise typer.Exit(1)
+
+    save_data(data)
+    console.print(f"✅ Task [bold cyan]{task_id}[/bold cyan] updated to status '[bold green]{status}[/bold green]'.")
+
 
 if __name__ == "__main__":
     app()
