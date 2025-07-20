@@ -386,6 +386,66 @@ def sync(
         console.print(f"❌ [bold red]Error syncing project:[/bold red] {e}")
         raise typer.Exit(1)
 
+@app.command(name="new")
+def new_project(
+    project_name: str = typer.Argument(..., help="The name of the new project."),
+    description: str = typer.Option("", "--description", "-d", help="A brief description of the new project."),
+    public: bool = typer.Option(True, "--public", "-p", help="Make the new GitHub repository public.")
+):
+    """
+    Creates a new project, including a GitHub repository, and tracks it with pm.
+    """
+    config = load_config()
+    data = load_data()
+    username = config["github_username"]
+    token = config["github_pat"]
+
+    console.print(f"✨ Creating new project [bold green]{project_name}[/bold green]...")
+
+    # 1. Create GitHub Repository
+    repo_creation_url = "https://api.github.com/user/repos"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    payload = {
+        "name": project_name,
+        "description": description,
+        "private": not public,
+        "has_wiki": True # Always enable Wiki for new projects
+    }
+
+    try:
+        response = requests.post(repo_creation_url, headers=headers, json=payload)
+        response.raise_for_status()
+        repo_data = response.json()
+        github_url = repo_data["html_url"]
+        console.print(f"✅ GitHub repository created: [link={github_url}]{github_url}[/link]")
+
+    except requests.exceptions.RequestException as e:
+        console.print(f"❌ [bold red]Error creating GitHub repository:[/bold red] {e}")
+        # Print the full response text for debugging
+        if response.text:
+            console.print(f"Response: {response.text}")
+        raise typer.Exit(1)
+
+    # 2. Add project to pm's data
+    new_project_id = max([p["id"] for p in data["projects"]]) + 1 if data["projects"] else 1
+    new_project_entry = {
+        "id": new_project_id,
+        "name": project_name,
+        "github_url": github_url,
+        "description": description,
+        "last_synced": None,
+        "tasks": [],
+        "sync_logs": []
+    }
+    data["projects"].append(new_project_entry)
+    save_data(data)
+
+    console.print(f"✅ Project [bold green]{project_name}[/bold green] (ID: {new_project_id}) added to pm tracking.")
+    console.print("💡 Remember to initialize a local Git repository and link it to your new GitHub repo if you plan to develop locally.")
+
 
 if __name__ == "__main__":
     app()

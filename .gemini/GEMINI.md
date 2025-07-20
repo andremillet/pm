@@ -4,4 +4,5 @@
 - **Current Project Status**: We have successfully implemented the foundational commands (`configure`, `import`, `list`, `show`, `add-task`, `update-task`).
 - **`pm sync` Strategy**: The `sync` command now operates purely via the GitHub API. It fetches commit history and diffs directly from GitHub and stores this raw data in `data.json`. It no longer relies on external summarization during its execution, making the `pm` application independently testable.
 - **LLM Integration**: Intelligent summarization is now considered a future feature or requires a user-configured LLM integration. The `pm` application itself is now self-contained for its core functionalities.
-- **Next Major Feature**: The `pm` application is now independently testable. We can now focus on enhancing the `show` command to display `sync_logs` or implementing the `pm add` command to manually add projects by URL.
+- **New Feature Implemented**: The `pm list` command now displays the Wiki status for each tracked project, indicating whether a GitHub Wiki exists for that repository.
+- **Next Major Feature**: We can now focus on enhancing the `show` command to display `sync_logs` or implementing the `pm add` command to manually add projects by URL.
