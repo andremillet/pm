@@ -2,23 +2,44 @@ import typer
 from rich.console import Console
 import json
 from pathlib import Path
+import requests
 
 app = typer.Typer(help="🚀 pm: Your intelligent project manager!")
 console = Console()
 
-# Define the configuration path
+# Define paths
 CONFIG_DIR = Path.home() / ".pm"
 CONFIG_FILE = CONFIG_DIR / "config.json"
+DATA_FILE = CONFIG_DIR / "data.json"
 
-def ensure_config_dir_exists():
-    """Ensures the configuration directory exists."""
+# --- Configuration and Data Loading ---
+
+def ensure_config_exists():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if not DATA_FILE.exists():
+        with open(DATA_FILE, "w") as f:
+            json.dump({"projects": []}, f, indent=4)
+
+def load_config():
+    if not CONFIG_FILE.exists():
+        console.print("❌ [bold red]Configuration not found.[/bold red] Please run `pm configure` first.")
+        raise typer.Exit(1)
+    with open(CONFIG_FILE, "r") as f:
+        return json.load(f)
+
+def load_data():
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+# --- Typer App --- 
 
 @app.callback(invoke_without_command=True)
 def cli_main(ctx: typer.Context):
-    """
-    Displays a welcome message if no command is provided.
-    """
+    ensure_config_exists()
     if ctx.invoked_subcommand is None:
         console.print("🚀 Welcome to [bold green]pm[/bold green] - your intelligent project manager!")
         console.print("Use [cyan]pm --help[/cyan] to see available commands.")
@@ -28,24 +49,66 @@ def configure():
     """
     Configure your GitHub username and Personal Access Token (PAT).
     """
-    ensure_config_dir_exists()
-
+    ensure_config_exists()
     console.print("🔑 Configuring GitHub credentials...")
-
     username = typer.prompt("Enter your GitHub username")
-    # Using hide_input=True for the token
     token = typer.prompt("Enter your GitHub Personal Access Token (PAT)", hide_input=True)
-
-    config_data = {
-        "github_username": username,
-        "github_pat": token
-    }
-
+    config_data = {"github_username": username, "github_pat": token}
     with open(CONFIG_FILE, "w") as f:
         json.dump(config_data, f, indent=4)
-
     console.print(f"✅ Configuration saved successfully to [cyan]{CONFIG_FILE}[/cyan]")
 
+@app.command(name="import")
+def import_projects():
+    """
+    Import repositories from your GitHub account.
+    """
+    config = load_config()
+    data = load_data()
+    username = config["github_username"]
+    token = config["github_pat"]
+
+    console.print(f"🔎 Fetching repositories for user [bold blue]{username}[/bold blue]...")
+    
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/user/repos?type=owner&sort=updated"
+    
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status() # Raises an exception for bad status codes
+        repos = response.json()
+
+        tracked_repos = {p['name'] for p in data['projects']}
+        new_projects_added = 0
+
+        for repo in repos:
+            repo_name = repo["name"]
+            if repo_name in tracked_repos:
+                continue # Skip already tracked projects
+
+            track = typer.confirm(f"Track repository [bold green]{repo_name}[/bold green]?", default=False)
+            if track:
+                new_project = {
+                    "id": len(data['projects']) + 1,
+                    "name": repo_name,
+                    "github_url": repo["html_url"],
+                    "description": repo["description"],
+                    "last_synced": None,
+                    "tasks": []
+                }
+                data['projects'].append(new_project)
+                tracked_repos.add(repo_name)
+                new_projects_added += 1
+
+        if new_projects_added > 0:
+            save_data(data)
+            console.print(f"✨ Successfully added {new_projects_added} new project(s)!")
+        else:
+            console.print("No new projects were added.")
+
+    except requests.exceptions.RequestException as e:
+        console.print(f"❌ [bold red]Error fetching repositories:[/bold red] {e}")
+        raise typer.Exit(1)
 
 if __name__ == "__main__":
     app()
