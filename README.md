@@ -44,3 +44,5 @@ This project is being developed using its own logic, serving as the first projec
 
 ---
 *This README is actively being developed alongside the project.*
+
+**Added a new line to trigger a new commit for testing sync command.**
