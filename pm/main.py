@@ -1,6 +1,8 @@
 import typer
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
 import json
 from pathlib import Path
 import requests
@@ -140,6 +142,49 @@ def list_projects():
         )
 
     console.print(table)
+
+@app.command()
+def show(project_id: int = typer.Argument(..., help="The ID of the project to show.")):
+    """
+    Show details of a specific project.
+    """
+    data = load_data()
+    projects = data.get("projects", [])
+
+    project = next((p for p in projects if p["id"] == project_id), None)
+
+    if project is None:
+        console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
+        raise typer.Exit(1)
+
+    console.print(Panel(
+        Text(f"ID: {project.get('id')}\n") +
+        Text(f"Name: {project.get('name')}\n") +
+        Text(f"GitHub URL: {project.get('github_url')}\n") +
+        Text(f"Description: {project.get('description') or 'No description'}\n") +
+        Text(f"Last Synced: {project.get('last_synced') or 'Never'}\n") +
+        Text("\nTasks:", style="bold"),
+        title=f"Project: [bold green]{project.get('name')}[/bold green]",
+        border_style="blue"
+    ))
+
+    tasks = project.get("tasks", [])
+    if tasks:
+        task_table = Table(title="Tasks")
+        task_table.add_column("ID", style="cyan")
+        task_table.add_column("Description", style="white")
+        task_table.add_column("Status", style="yellow")
+
+        for task in tasks:
+            task_table.add_row(
+                str(task["id"]),
+                task["description"],
+                task["status"]
+            )
+        console.print(task_table)
+    else:
+        console.print("🤷 No tasks for this project yet.")
+
 
 if __name__ == "__main__":
     app()
