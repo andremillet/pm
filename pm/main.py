@@ -6,6 +6,7 @@ from rich.text import Text
 import json
 from pathlib import Path
 import requests
+from datetime import datetime
 
 app = typer.Typer(help="🚀 pm: Your intelligent project manager!")
 console = Console()
@@ -37,6 +38,9 @@ def load_data():
 def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
+def find_project_by_id(project_id: int, data: dict):
+    return next((p for p in data.get("projects", []) if p["id"] == project_id), None)
 
 # --- Typer App --- 
 
@@ -149,9 +153,7 @@ def show(project_id: int = typer.Argument(..., help="The ID of the project to sh
     Show details of a specific project.
     """
     data = load_data()
-    projects = data.get("projects", [])
-
-    project = next((p for p in projects if p["id"] == project_id), None)
+    project = find_project_by_id(project_id, data)
 
     if project is None:
         console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
@@ -194,9 +196,7 @@ def add_task(
     Add a new task to a project.
     """
     data = load_data()
-    projects = data.get("projects", [])
-
-    project = next((p for p in projects if p["id"] == project_id), None)
+    project = find_project_by_id(project_id, data)
 
     if project is None:
         console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
@@ -250,6 +250,114 @@ def update_task(
 
     save_data(data)
     console.print(f"✅ Task [bold cyan]{task_id}[/bold cyan] updated to status '[bold green]{status}[/bold green]'.")
+
+@app.command()
+def sync(
+    project_id: int = typer.Argument(..., help="The ID of the project to sync.")
+):
+    """
+    Syncs a project with its GitHub repository, fetching new commits and summarizing progress.
+    """
+    config = load_config()
+    data = load_data()
+    project = find_project_by_id(project_id, data)
+
+    if project is None:
+        console.print(f"❌ [bold red]Project with ID {project_id} not found.[/bold red]")
+        raise typer.Exit(1)
+
+    console.print(f"🔄 Syncing project [bold blue]{project['name']}[/bold blue]...")
+
+    username = config["github_username"]
+    token = config["github_pat"]
+    repo_name = project["name"]
+    owner = username # Assuming the user is the owner for now
+
+    headers = {"Authorization": f"token {token}"}
+    
+    # Get the last synced date to fetch only new commits
+    last_synced_dt = None
+    if project["last_synced"]:
+        last_synced_dt = datetime.fromisoformat(project["last_synced"])
+
+    # Fetch commits from GitHub API
+    # We'll fetch all commits and filter by date locally for simplicity, or use 'since' parameter
+    # For now, let's fetch all and process.
+    commits_url = f"https://api.github.com/repos/{owner}/{repo_name}/commits"
+    
+    try:
+        response = requests.get(commits_url, headers=headers)
+        response.raise_for_status()
+        commits = response.json()
+
+        new_commits_data = []
+        for commit in commits:
+            commit_date_str = commit["commit"]["author"]["date"]
+            commit_dt = datetime.fromisoformat(commit_date_str.replace("Z", "+00:00")) # Handle 'Z' for UTC
+
+            if last_synced_dt and commit_dt <= last_synced_dt:
+                continue # Skip old commits
+            
+            # Fetch full commit details including diff
+            commit_detail_url = commit["url"]
+            detail_response = requests.get(commit_detail_url, headers=headers)
+            detail_response.raise_for_status()
+            commit_details = detail_response.json()
+            
+            new_commits_data.append({
+                "sha": commit["sha"],
+                "message": commit["commit"]["message"],
+                "author": commit["commit"]["author"]["name"],
+                "date": commit_date_str,
+                "diff": commit_details.get("files", []) # Diff is in 'files' array
+            })
+        
+        if not new_commits_data:
+            console.print("✅ No new commits to sync.")
+            project["last_synced"] = datetime.now().isoformat()
+            save_data(data)
+            return
+
+        # Sort new commits by date ascending
+        new_commits_data.sort(key=lambda x: datetime.fromisoformat(x["date"].replace("Z", "+00:00")))
+
+        # Prepare data for summarization
+        summarization_input = []
+        for c in new_commits_data:
+            diff_content = "\n".join([f"File: {f['filename']}\nStatus: {f['status']}\nChanges: {f.get('patch', 'No patch')}" for f in c["diff"]])
+            summarization_input.append(
+                f"Commit SHA: {c['sha']}\n"
+                f"Author: {c['author']}\n"
+                f"Date: {c['date']}\n"
+                f"Message: {c['message']}\n"
+                f"Diff:\n{diff_content}\n---"
+            )
+        
+        full_prompt = "Summarize the following Git commits and their changes. Focus on key features, bug fixes, and significant refactors. Provide a concise, high-level overview of the progress. If there are multiple commits, group related changes. Output should be a single paragraph or a short bulleted list.\n\n" + "\n".join(summarization_input)
+
+        # Placeholder for web_fetch call
+        console.print("🧠 Sending commits for summarization...")
+        # summary_result = default_api.web_fetch(prompt=full_prompt)
+        # summary = summary_result.get("summary", "Could not generate summary.")
+        summary = "[Placeholder Summary: Commits would be summarized here by a language model.]"
+
+        # Store summary and update last_synced
+        if "sync_logs" not in project:
+            project["sync_logs"] = []
+        project["sync_logs"].append({
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "new_commits_count": len(new_commits_data)
+        })
+        project["last_synced"] = datetime.now().isoformat()
+        save_data(data)
+
+        console.print(f"✅ Project [bold blue]{project['name']}[/bold blue] synced successfully!")
+        console.print(f"Summary of new activity:\n{summary}")
+
+    except requests.exceptions.RequestException as e:
+        console.print(f"❌ [bold red]Error syncing project:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
