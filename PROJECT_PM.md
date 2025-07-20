@@ -20,10 +20,11 @@ The core philosophy is "dogfooding": `pm` will be developed using its own logic 
 
 ### Phase 3: Intelligent Sync & Automated Summarization
 - **`pm sync <project_id>`**: The core command. It will:
-    1. Fetch the latest changes from the remote repository (`git pull`).
-    2. Read the `git log` and `git diff` since the last sync.
+    1. Fetch the latest changes from the remote repository using GitHub API.
+    2. Read the commits and their diffs since the last sync via GitHub API.
     3. **(Magic)** Use a Language Model to generate a concise, human-readable summary of the progress.
     4. Store this summary as a log entry for the project.
+    This command will NOT clone the repository locally, making `pm` lightweight and independent of local codebases.
 - **`pm show <project_id>`**: Display project details, including the automatically generated progress log.
 
 ### Phase 4: Local LLM Integration (Future Goal)
